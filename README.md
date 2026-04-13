@@ -57,6 +57,8 @@ class User {
 
   @Column()
   email: string;
+
+  // 注意：未添加 @Column 的属性不会参与任何 SQL 操作
 }
 ```
 

@@ -2,6 +2,23 @@
 
 node-mybatis-plus 使用装饰器将 TypeScript 类映射到数据库表。三个核心装饰器：`@Table`、`@Column`、`@Id`。
 
+::: warning 重要：所有数据库字段必须添加装饰器
+框架基于运行时装饰器元数据工作，**只有添加了 `@Column`（或 `@Id`）装饰器的属性才会被识别为数据库字段**。未添加装饰器的属性在查询、插入、更新时会被完全忽略。
+
+```ts
+@Table('sys_user')
+class User {
+  @Id({ type: 'auto' })
+  id!: number;
+
+  @Column()          // ✅ 会映射到 user_name 列
+  userName!: string;
+
+  age!: number;      // ❌ 没有 @Column，不会参与任何 SQL 操作
+}
+```
+:::
+
 ## @Table 装饰器
 
 `@Table(tableName)` 用于指定类对应的数据库表名，必须放在 class 上：
