@@ -1,11 +1,19 @@
 // ============ Entity Metadata ============
 
+export type FillStrategy = 'insert' | 'update' | 'insertAndUpdate';
+
 export interface ColumnMeta {
   propertyName: string;
   columnName: string;
   isPrimary: boolean;
   idType?: 'auto' | 'uuid' | 'snowflake' | 'input';
   exist: boolean;
+  // 逻辑删除
+  isLogicDelete?: boolean;
+  logicDeleteValue?: any;    // 已删除的值，默认 1
+  logicNotDeleteValue?: any; // 未删除的值，默认 0
+  // 自动填充
+  fill?: FillStrategy;
 }
 
 export interface EntityMeta {
@@ -13,6 +21,7 @@ export interface EntityMeta {
   columns: ColumnMeta[];
   idColumn: ColumnMeta | null;
   target: Function;
+  logicDeleteColumn?: ColumnMeta; // 逻辑删除列（如果有）
 }
 
 // ============ SQL AST ============

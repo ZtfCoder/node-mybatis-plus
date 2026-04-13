@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { EntityMeta, ColumnMeta } from '../types';
+import type { EntityMeta, ColumnMeta, FillStrategy } from '../types';
 
 const ENTITY_META_KEY = Symbol('entity:meta');
 
@@ -77,4 +77,48 @@ export function getEntityMeta(target: Function): EntityMeta {
 
 export function camelToSnake(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+// ============ @LogicDelete ============
+
+export interface LogicDeleteOptions {
+  /** 已删除的值，默认 1 */
+  deleteValue?: any;
+  /** 未删除的值，默认 0 */
+  notDeleteValue?: any;
+  /** 数据库列名，不传则自动 camelCase → snake_case */
+  name?: string;
+}
+
+export function LogicDelete(options?: LogicDeleteOptions): PropertyDecorator {
+  return (target, propertyKey) => {
+    const meta = getOrCreateMeta(target.constructor);
+    const col = ensureColumn(meta, propertyKey as string);
+    if (options?.name) col.columnName = options.name;
+    col.isLogicDelete = true;
+    col.logicDeleteValue = options?.deleteValue ?? 1;
+    col.logicNotDeleteValue = options?.notDeleteValue ?? 0;
+    meta.logicDeleteColumn = col;
+  };
+}
+
+// ============ @TableField ============
+
+export interface TableFieldOptions {
+  /** 自动填充策略 */
+  fill?: FillStrategy;
+  /** 数据库列名，不传则自动 camelCase → snake_case */
+  name?: string;
+  /** 是否为数据库字段，默认 true */
+  exist?: boolean;
+}
+
+export function TableField(options: TableFieldOptions): PropertyDecorator {
+  return (target, propertyKey) => {
+    const meta = getOrCreateMeta(target.constructor);
+    const col = ensureColumn(meta, propertyKey as string);
+    if (options.name) col.columnName = options.name;
+    if (options.exist === false) col.exist = false;
+    if (options.fill) col.fill = options.fill;
+  };
 }

@@ -6,12 +6,12 @@ export type {
   SelectNode, InsertNode, UpdateNode, DeleteNode, SqlNode,
   Dialect, Plugin, PluginContext,
   DataSource, DataSourceConfig, Connection, TransactionContext, PoolConfig,
-  Page,
+  Page, FillStrategy,
 } from './types';
 
 // Decorators
-export { Table, Column, Id } from './decorator';
-export type { IdOptions, ColumnOptions } from './decorator';
+export { Table, Column, Id, LogicDelete, TableField } from './decorator';
+export type { IdOptions, ColumnOptions, LogicDeleteOptions, TableFieldOptions } from './decorator';
 
 // DataSource
 export { createDataSource } from './core/datasource';
@@ -37,6 +37,13 @@ export type { CompiledSql } from './builder/sql-builder';
 
 // Plugin
 export { runPlugins } from './plugin/runner';
+
+// Built-in Plugins
+export { createLogicDeletePlugin } from './plugins/logic-delete';
+export { createAutoFillPlugin } from './plugins/auto-fill';
+export type { AutoFillOptions, FillHandler } from './plugins/auto-fill';
+export { createMultiTenantPlugin } from './plugins/multi-tenant';
+export type { MultiTenantOptions } from './plugins/multi-tenant';
 
 // ID Generator
 export { Snowflake, configureSnowflake, getSnowflake, nextSnowflakeId } from './id/snowflake';
