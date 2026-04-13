@@ -104,49 +104,27 @@ const slowQueryPlugin: Plugin = {
 慢查询阈值（示例中为 1000ms）应根据实际业务场景调整。生产环境建议接入监控系统而非仅打印日志。
 :::
 
-## 多租户 SQL 改写插件示例
+## 多租户 SQL 改写
 
-在 `beforeExecute` 中修改 `ctx.sql` 和 `ctx.params`，自动为查询、更新、删除语句追加租户条件：
+框架已内置多租户插件，推荐直接使用 `createMultiTenantPlugin`，无需手写 SQL 改写逻辑：
 
 ```ts
-function getCurrentTenantId(): number {
-  // 从请求上下文中获取当前租户 ID
-  return 1;
-}
+import { createMultiTenantPlugin } from 'node-mybatis-plus';
 
-const tenantPlugin: Plugin = {
-  name: 'multi-tenant',
-  order: -10, // 负数 order，确保在其他插件之前执行
-  beforeExecute(ctx: PluginContext) {
-    const { type } = ctx.node;
-    if (type === 'select' || type === 'update' || type === 'delete') {
-      // 修改 SQL：追加租户条件
-      if (ctx.sql.includes('WHERE')) {
-        ctx.sql = ctx.sql.replace('WHERE', 'WHERE tenant_id = ? AND');
-      } else {
-        ctx.sql = ctx.sql + ' WHERE tenant_id = ?';
-      }
-      // 修改参数：追加租户 ID
-      ctx.params.push(getCurrentTenantId());
-    }
-  },
-};
+const ds = createDataSource({
+  plugins: [
+    createMultiTenantPlugin({
+      getTenantId: () => getCurrentTenantId(),
+      ignoreTables: ['sys_config'],
+    }),
+  ],
+});
 ```
 
-改写前后对比：
-
-```sql
--- 原始 SQL
-SELECT `id`, `user_name` FROM `sys_user` WHERE `age` >= ?
--- 参数: [18]
-
--- 改写后
-SELECT `id`, `user_name` FROM `sys_user` WHERE tenant_id = ? AND `age` >= ?
--- 参数: [18, 1]
-```
+详见 [多租户指南](/guide/multi-tenant)。
 
 ::: tip
-`beforeExecute` 中对 `ctx.sql` 和 `ctx.params` 的修改会直接影响最终执行的 SQL。利用这一点可以实现 SQL 改写、参数注入等高级功能。
+如果你需要实现自定义的 SQL 改写逻辑，可以在 `beforeExecute` 中操作 `ctx.sql` 和 `ctx.params`。建议使用 `ctx.node` 的 AST 信息判断 SQL 类型，而不是直接字符串匹配，以避免边界情况。
 :::
 
 ## 注册插件
@@ -163,7 +141,7 @@ const ds = createDataSource({
   database: 'test',
   username: 'root',
   password: '******',
-  plugins: [sqlLogPlugin, slowQueryPlugin, tenantPlugin],
+  plugins: [sqlLogPlugin, slowQueryPlugin],
 });
 ```
 
@@ -171,9 +149,8 @@ const ds = createDataSource({
 
 | 插件 | order | 执行顺序 |
 |------|-------|----------|
-| `multi-tenant` | -10 | 第 1 个 |
-| `sql-log` | 0 | 第 2 个 |
-| `slow-query` | 10 | 第 3 个 |
+| `sql-log` | 0 | 第 1 个 |
+| `slow-query` | 10 | 第 2 个 |
 
 ## 插件开发建议
 
@@ -185,5 +162,7 @@ const ds = createDataSource({
 
 ## 下一步
 
+- [逻辑删除](/guide/logic-delete) — 内置逻辑删除插件
+- [自动填充](/guide/auto-fill) — 内置自动填充插件
+- [多租户](/guide/multi-tenant) — 内置多租户插件
 - [多数据库切换](/guide/multi-database) — 一套代码切换 MySQL / PostgreSQL / SQLite
-- [事务管理](/guide/transaction) — 编程式事务和声明式事务

@@ -226,21 +226,6 @@ const slowQueryPlugin: Plugin = {
     }
   },
 };
-
-// 示例：SQL 改写插件（beforeExecute 中修改 ctx.sql / ctx.params）
-const tenantPlugin: Plugin = {
-  name: 'multi-tenant',
-  order: -10,
-  beforeExecute(ctx: PluginContext) {
-    // 自动追加租户条件
-    if (ctx.node.type === 'select' || ctx.node.type === 'update' || ctx.node.type === 'delete') {
-      ctx.sql = ctx.sql.includes('WHERE')
-        ? ctx.sql.replace('WHERE', 'WHERE tenant_id = ? AND')
-        : ctx.sql + ' WHERE tenant_id = ?';
-      ctx.params.push(getCurrentTenantId());
-    }
-  },
-};
 ```
 
 注册插件：
@@ -429,9 +414,9 @@ npx vitest run test/wrapper.test.ts
 ### 核心功能
 
 - [ ] JOIN 关联查询 — `lambdaQuery().leftJoin(Order).on(...)` 链式关联
-- [ ] 逻辑删除 — `@LogicDelete` 装饰器，自动将 DELETE 转为 UPDATE
+- [x] 逻辑删除 — `@LogicDelete` 装饰器，自动将 DELETE 转为 UPDATE ✅
 - [ ] 乐观锁 — `@Version` 装饰器，UPDATE 时自动检查版本号
-- [ ] 自动填充 — `@TableField(fill: 'insert')` 创建时间/更新时间自动填充
+- [x] 自动填充 — `@Column({ fill: 'insert' })` 创建时间/更新时间自动填充 ✅
 - [ ] 枚举类型处理 — 自动转换 TypeScript 枚举与数据库值
 - [ ] 结果集映射 — 查询结果自动 snake_case → camelCase 转换为实体实例
 
@@ -451,12 +436,12 @@ npx vitest run test/wrapper.test.ts
 
 ### 工程化
 
-- [ ] 内置常用插件 — 分页拦截器、SQL 性能分析、数据权限
+- [x] 内置常用插件 — 逻辑删除、自动填充、多租户 ✅
 - [ ] 代码生成器 — 根据数据库表结构自动生成实体类和 Mapper
-- [ ] ESM/CJS 双格式发布 ✅
-- [ ] GitHub Actions CI/CD ✅
-- [ ] 官方文档站点（VitePress）✅
-- [ ] npm 发布 ✅
+- [x] ESM/CJS 双格式发布 ✅
+- [x] GitHub Actions CI/CD ✅
+- [x] 官方文档站点（VitePress）✅
+- [x] npm 发布 ✅
 
 ### 类型安全增强
 
