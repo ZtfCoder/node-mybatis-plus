@@ -1,4 +1,4 @@
-import type { DataSource, EntityMeta, InsertNode, DeleteNode, Page, PluginContext, SqlNode } from '../types';
+import type { DataSource, EntityMeta, InsertNode, DeleteNode, Page, SqlNode } from '../types';
 import { getEntityMeta } from '../decorator';
 import { SqlBuilder } from '../builder/sql-builder';
 import { LambdaQueryWrapper } from '../wrapper/query-wrapper';

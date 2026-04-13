@@ -421,6 +421,45 @@ npx vitest run test/wrapper.test.ts
 
 测试覆盖：207 个用例，包括单元测试（方言、装饰器、SQL 构建、条件构造器）和集成测试（SQLite + MySQL 全 CRUD、事务、自定义 SQL）。
 
+## 📋 Roadmap
+
+### 核心功能
+
+- [ ] JOIN 关联查询 — `lambdaQuery().leftJoin(Order).on(...)` 链式关联
+- [ ] 逻辑删除 — `@LogicDelete` 装饰器，自动将 DELETE 转为 UPDATE
+- [ ] 乐观锁 — `@Version` 装饰器，UPDATE 时自动检查版本号
+- [ ] 自动填充 — `@TableField(fill: 'insert')` 创建时间/更新时间自动填充
+- [ ] 枚举类型处理 — 自动转换 TypeScript 枚举与数据库值
+- [ ] 结果集映射 — 查询结果自动 snake_case → camelCase 转换为实体实例
+
+### 查询增强
+
+- [ ] HAVING 条件构造 — `lambdaQuery().groupBy('dept').having(...)` 
+- [ ] 子查询支持 — `inSql('id', 'SELECT user_id FROM orders')`
+- [ ] EXISTS / NOT EXISTS 条件
+- [ ] SELECT 聚合函数 — `selectSum('amount')` / `selectAvg('age')`
+- [ ] DISTINCT 支持
+
+### 数据库支持
+
+- [ ] SQL Server 方言
+- [ ] Oracle 方言
+- [ ] 数据库迁移工具集成（或内置轻量迁移）
+
+### 工程化
+
+- [ ] 内置常用插件 — 分页拦截器、SQL 性能分析、数据权限
+- [ ] 代码生成器 — 根据数据库表结构自动生成实体类和 Mapper
+- [ ] ESM/CJS 双格式发布 ✅
+- [ ] GitHub Actions CI/CD ✅
+- [ ] 官方文档站点（VitePress）✅
+- [ ] npm 发布 ✅
+
+### 类型安全增强
+
+- [ ] 查询结果类型推导 — `select('name', 'age')` 返回 `Pick<T, 'name' | 'age'>`
+- [ ] 严格模式 — 编译期检测无效字段名（目前运行时检测）
+
 ## 📄 License
 
 MIT
