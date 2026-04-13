@@ -1,0 +1,53 @@
+{
+  "name": "node-mybatis-plus",
+  "version": "0.1.0",
+  "description": "MyBatis-Plus style ORM for Node.js with lambda query, dynamic SQL and multi-database support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest"
+  },
+  "keywords": [
+    "orm",
+    "mybatis",
+    "mybatis-plus",
+    "lambda-query",
+    "typescript"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
+    "better-sqlite3": "^12.8.0",
+    "mysql2": "^3.20.0",
+    "pg": "^8.20.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.2.2"
+  },
+  "peerDependencies": {
+    "better-sqlite3": "^11.0.0",
+    "mysql2": "^3.0.0",
+    "pg": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "mysql2": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    }
+  }
+}
