@@ -51,6 +51,9 @@ export default defineConfig({
           items: [
             { text: '事务管理', link: '/guide/transaction' },
             { text: '插件机制', link: '/guide/plugin' },
+            { text: '逻辑删除', link: '/guide/logic-delete' },
+            { text: '自动填充', link: '/guide/auto-fill' },
+            { text: '多租户', link: '/guide/multi-tenant' },
             { text: '多数据库切换', link: '/guide/multi-database' },
           ],
         },

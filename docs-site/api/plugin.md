@@ -133,3 +133,87 @@ const ds = createDataSource({
   plugins: [sqlLogPlugin, slowQueryPlugin],
 })
 ```
+
+## 内置插件
+
+### createLogicDeletePlugin
+
+创建逻辑删除插件实例。
+
+```ts
+function createLogicDeletePlugin(): Plugin
+```
+
+无需参数，直接调用即可。需要实体上有 `@LogicDelete` 装饰的字段才会生效。
+
+```ts
+import { createLogicDeletePlugin } from 'node-mybatis-plus'
+
+plugins: [createLogicDeletePlugin()]
+```
+
+详见 [逻辑删除指南](/guide/logic-delete)。
+
+---
+
+### createAutoFillPlugin
+
+创建自动填充插件实例。
+
+```ts
+function createAutoFillPlugin(options: AutoFillOptions): Plugin
+```
+
+```ts
+interface AutoFillOptions {
+  handler: (fieldName: string, strategy: FillStrategy) => any
+}
+
+type FillStrategy = 'insert' | 'update' | 'insertAndUpdate'
+```
+
+```ts
+import { createAutoFillPlugin } from 'node-mybatis-plus'
+
+plugins: [
+  createAutoFillPlugin({
+    handler: (field) => {
+      if (field === 'createTime' || field === 'updateTime') return new Date()
+    }
+  })
+]
+```
+
+详见 [自动填充指南](/guide/auto-fill)。
+
+---
+
+### createMultiTenantPlugin
+
+创建多租户插件实例。
+
+```ts
+function createMultiTenantPlugin(options: MultiTenantOptions): Plugin
+```
+
+```ts
+interface MultiTenantOptions {
+  getTenantId: () => any | Promise<any>
+  tenantColumn?: string       // 默认 'tenant_id'
+  ignoreTables?: string[]
+  fillOnInsert?: boolean      // 默认 true
+}
+```
+
+```ts
+import { createMultiTenantPlugin } from 'node-mybatis-plus'
+
+plugins: [
+  createMultiTenantPlugin({
+    getTenantId: () => requestContext.getStore()?.tenantId,
+    ignoreTables: ['sys_config'],
+  })
+]
+```
+
+详见 [多租户指南](/guide/multi-tenant)。

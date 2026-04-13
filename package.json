@@ -1,6 +1,6 @@
 {
   "name": "node-mybatis-plus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MyBatis-Plus style ORM for Node.js with lambda query, dynamic SQL and multi-database support",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

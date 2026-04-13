@@ -208,3 +208,87 @@ class UserService {
   }
 }
 ```
+
+## @LogicDelete
+
+属性装饰器，标记逻辑删除字段。配合 `createLogicDeletePlugin` 使用，自动将 DELETE 改写为 UPDATE，SELECT/UPDATE 自动追加未删除条件。
+
+### 签名
+
+```ts
+function LogicDelete(options?: LogicDeleteOptions): PropertyDecorator
+```
+
+### LogicDeleteOptions
+
+```ts
+interface LogicDeleteOptions {
+  deleteValue?: any;     // 已删除的值，默认 1
+  notDeleteValue?: any;  // 未删除的值，默认 0
+  name?: string;         // 数据库列名，不传则自动 camelCase → snake_case
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `deleteValue` | `any` | `1` | 标记为已删除时写入的值 |
+| `notDeleteValue` | `any` | `0` | 未删除时的值，查询时自动追加此条件 |
+| `name` | `string` | 自动转换 | 自定义数据库列名 |
+
+### 示例
+
+```ts
+import { Table, Column, Id, LogicDelete } from 'node-mybatis-plus'
+
+@Table('sys_user')
+class User {
+  @Id({ type: 'auto' })
+  id!: number
+
+  @Column()
+  userName!: string
+
+  @LogicDelete()
+  deleted!: number  // 默认：0 未删除，1 已删除
+
+  // 自定义删除值
+  @LogicDelete({ deleteValue: 'Y', notDeleteValue: 'N' })
+  deletedFlag!: string
+}
+```
+
+## @TableField
+
+`@Column` 的别名，兼容 MyBatis-Plus 风格的命名习惯，功能与 `@Column` 完全相同。
+
+### 签名
+
+```ts
+function TableField(nameOrOptions?: string | ColumnOptions): PropertyDecorator
+```
+
+### 示例
+
+```ts
+import { Table, Id, TableField } from 'node-mybatis-plus'
+
+@Table('sys_user')
+class User {
+  @Id({ type: 'auto' })
+  id!: number
+
+  @TableField('user_name')
+  userName!: string
+
+  @TableField({ fill: 'insert' })
+  createTime!: Date
+
+  @TableField({ fill: 'insertAndUpdate' })
+  updateTime!: Date
+
+  @TableField({ exist: false })
+  fullName!: string  // 非数据库字段
+}
+```
+
+详见 [@Column](#column) 的完整选项说明。
