@@ -4,6 +4,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'node-mybatis-plus',
   description: 'MyBatis-Plus 风格的 Node.js ORM 库',
+  base: '/node-mybatis-plus/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
