@@ -4,6 +4,8 @@ MyBatis-Plus 风格的 Node.js ORM 库，为 TypeScript 开发者提供类型安
 
 > 如果你用过 Java 的 MyBatis-Plus，那你已经会用了。
 
+📖 [官方文档](https://ztfcoder.github.io/node-mybatis-plus/)
+
 ## ✨ 特性
 
 - 🔗 **Lambda 链式查询** — 类型安全的条件构造器，IDE 自动补全字段名
