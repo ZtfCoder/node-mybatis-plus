@@ -461,6 +461,11 @@ npx vitest run test/wrapper.test.ts
 - [ ] 查询结果类型推导 — `select('name', 'age')` 返回 `Pick<T, 'name' | 'age'>`
 - [ ] 严格模式 — 编译期检测无效字段名（目前运行时检测）
 
+## 🙏 致谢
+
+- [MyBatis](https://mybatis.org/) — 优秀的 Java 持久层框架，本项目的 SQL 映射和命名参数设计深受其启发
+- [MyBatis-Plus](https://baomidou.com/) — 本项目的 API 风格和核心理念（Lambda 链式查询、动态条件、通用 CRUD、BaseMapper）直接致敬 MyBatis-Plus，感谢苞米豆团队为 Java 生态做出的贡献
+
 ## 📄 License
 
 MIT
