@@ -104,13 +104,13 @@ function Id(options?: IdOptions): PropertyDecorator
 
 ```ts
 interface IdOptions {
-  type?: 'auto' | 'uuid' | 'input'
+  type?: 'auto' | 'uuid' | 'snowflake' | 'input'
 }
 ```
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `type` | `'auto' \| 'uuid' \| 'input'` | `'auto'` | 主键生成策略：`auto` 数据库自增，`uuid` 自动生成 UUID，`input` 手动赋值 |
+| `type` | `'auto' \| 'uuid' \| 'snowflake' \| 'input'` | `'auto'` | 主键生成策略：`auto` 数据库自增，`uuid` 自动生成 UUID，`snowflake` 雪花算法生成分布式唯一 ID，`input` 手动赋值 |
 
 ### 示例
 

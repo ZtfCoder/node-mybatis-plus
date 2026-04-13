@@ -21,6 +21,7 @@ class BaseMapper<T extends object> {
 |------|------|--------|------|
 | `insert` | `insert(entity: Partial<T>)` | `Promise<number>` | 插入单条记录，返回自增 ID |
 | `insertBatch` | `insertBatch(entities: Partial<T>[])` | `Promise<number>` | 批量插入，返回影响行数 |
+| `saveBatch` | `saveBatch(entities: Partial<T>[], batchSize?: number)` | `Promise<number>` | 分批插入，每批独立事务，默认 1000 条/批 |
 | `selectById` | `selectById(id: any)` | `Promise<T \| null>` | 根据主键查询单条记录 |
 | `selectBatchIds` | `selectBatchIds(ids: any[])` | `Promise<T[]>` | 根据主键批量查询 |
 | `selectList` | `selectList(wrapper?: LambdaQueryWrapper<T>)` | `Promise<T[]>` | 条件查询列表 |
@@ -61,6 +62,24 @@ const affected = await userMapper.insertBatch([
   { userName: '李四', email: 'b@example.com' },
 ])
 // affected = 2
+```
+
+### saveBatch
+
+分批插入大量数据，每批在独立事务中执行。适合大数据量场景，避免单条 SQL 过长。
+
+```ts
+saveBatch(entities: Partial<T>[], batchSize?: number): Promise<number>
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `entities` | `Partial<T>[]` | — | 实体列表 |
+| `batchSize` | `number` | `1000` | 每批大小 |
+
+```ts
+// 10000 条数据，每 1000 条一批，共 10 个独立事务
+const affected = await userMapper.saveBatch(largeList, 1000)
 ```
 
 ### selectById

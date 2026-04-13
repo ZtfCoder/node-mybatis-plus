@@ -146,6 +146,33 @@ class Log {
 
 `type: 'uuid'` 表示使用 UUID 作为主键，insert 时自动生成 UUID 值。
 
+### 雪花算法主键
+
+```ts
+@Table('sys_order')
+class Order {
+  @Id({ type: 'snowflake' })
+  id!: string;
+
+  @Column()
+  amount!: number;
+}
+```
+
+`type: 'snowflake'` 表示使用雪花算法（Twitter Snowflake）生成分布式唯一 ID。生成的 ID 为纯数字字符串，趋势递增，适合分布式场景。
+
+可以在应用启动时配置数据中心和机器 ID：
+
+```ts
+import { configureSnowflake } from 'node-mybatis-plus';
+
+configureSnowflake({ datacenterId: 1, workerId: 3 });
+```
+
+::: tip
+雪花 ID 是 64 位整数，超出 JS `Number.MAX_SAFE_INTEGER`，因此以 `string` 类型返回，避免精度丢失。如果用户手动传入了 id 值，不会被覆盖。
+:::
+
 ### 手动赋值主键
 
 ```ts
@@ -165,7 +192,7 @@ class Config {
 
 ```ts
 interface IdOptions {
-  type?: 'auto' | 'uuid' | 'input';  // 默认 'auto'
+  type?: 'auto' | 'uuid' | 'snowflake' | 'input';  // 默认 'auto'
 }
 ```
 
@@ -173,6 +200,7 @@ interface IdOptions {
 |------|------|-------------|
 | `auto` | 数据库自增 | 不传 id，返回自增值 |
 | `uuid` | UUID 生成 | 自动生成 UUID |
+| `snowflake` | 雪花算法 | 自动生成分布式唯一 ID（字符串） |
 | `input` | 手动赋值 | 必须传入 id 值 |
 
 ## 完整示例

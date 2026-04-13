@@ -353,6 +353,7 @@ class OrderService {
 |------|------|
 | `insert(entity)` | 新增，返回自增 ID |
 | `insertBatch(entities)` | 批量新增 |
+| `saveBatch(entities, batchSize?)` | 分批插入（每批独立事务，默认 1000 条/批） |
 | `deleteById(id)` | 按 ID 删除 |
 | `deleteBatchIds(ids)` | 批量删除 |
 | `delete(wrapper)` | 条件删除 |

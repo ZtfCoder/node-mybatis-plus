@@ -46,6 +46,20 @@ const affected = await userMapper.insertBatch([
 console.log('插入行数:', affected); // → 2
 ```
 
+### saveBatch — 分批插入
+
+大数据量时使用 `saveBatch`，按 `batchSize` 分批，每批在独立事务中执行：
+
+```ts
+// 10000 条数据，每 1000 条一批
+const affected = await userMapper.saveBatch(largeList, 1000);
+// 共执行 10 批，每批一个独立事务
+```
+
+::: tip
+`insertBatch` 适合少量数据（几百条），生成单条 SQL。`saveBatch` 适合大数据量（上万条），自动分批 + 事务保护。
+:::
+
 ## 查询
 
 ### selectById — 按 ID 查询
@@ -164,6 +178,7 @@ await userMapper.delete(wrapper);
 |------|------|--------|
 | `insert(entity)` | 单条新增 | `Promise<number>` 自增 ID |
 | `insertBatch(entities)` | 批量新增 | `Promise<number>` 影响行数 |
+| `saveBatch(entities, batchSize?)` | 分批插入（每批独立事务） | `Promise<number>` 影响行数 |
 | `selectById(id)` | 按 ID 查询 | `Promise<T \| null>` |
 | `selectBatchIds(ids)` | 批量 ID 查询 | `Promise<T[]>` |
 | `selectList(wrapper?)` | 查询列表 | `Promise<T[]>` |

@@ -53,6 +53,38 @@ export class BaseMapper<T extends object> {
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? entities.length;
   }
 
+  /**
+   * 分批插入（类似 MyBatis-Plus 的 saveBatch）
+   * 按 batchSize 分批，每批在独立事务中执行多行 VALUES INSERT
+   * @param entities 实体列表
+   * @param batchSize 每批大小，默认 1000
+   * @returns 总影响行数
+   */
+  async saveBatch(entities: Partial<T>[], batchSize = 1000): Promise<number> {
+    if (!entities.length) return 0;
+    for (const e of entities) this.fillGeneratedId(e);
+
+    let totalAffected = 0;
+    const cols = this.getInsertableColumns();
+    const columns = cols.map(c => c.columnName);
+    const { withTransaction } = await import('../core/transaction');
+
+    for (let i = 0; i < entities.length; i += batchSize) {
+      const batch = entities.slice(i, i + batchSize);
+      const values = batch.map(e => cols.map(c => (e as any)[c.propertyName]));
+      const node: InsertNode = { type: 'insert', table: this.entityMeta.tableName, columns, values };
+      const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
+
+      // 每批一个独立事务
+      await withTransaction(this.ds, async () => {
+        const result = await this.executeWithPlugins(node, sql, params);
+        totalAffected += result?.affectedRows ?? result?.rowCount ?? result?.changes ?? batch.length;
+      });
+    }
+
+    return totalAffected;
+  }
+
   // ---- 删除 ----
 
   async deleteById(id: any): Promise<number> {
