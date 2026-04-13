@@ -37,3 +37,7 @@ export type { CompiledSql } from './builder/sql-builder';
 
 // Plugin
 export { runPlugins } from './plugin/runner';
+
+// ID Generator
+export { Snowflake, configureSnowflake, getSnowflake, nextSnowflakeId } from './id/snowflake';
+export type { SnowflakeOptions } from './id/snowflake';

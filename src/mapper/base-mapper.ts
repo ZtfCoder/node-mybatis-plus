@@ -4,6 +4,7 @@ import { SqlBuilder } from '../builder/sql-builder';
 import { LambdaQueryWrapper } from '../wrapper/query-wrapper';
 import { LambdaUpdateWrapper } from '../wrapper/update-wrapper';
 import { runPlugins } from '../plugin/runner';
+import { nextSnowflakeId } from '../id/snowflake';
 
 export class BaseMapper<T extends object> {
   protected entityMeta: EntityMeta;
@@ -27,15 +28,22 @@ export class BaseMapper<T extends object> {
   // ---- 新增 ----
 
   async insert(entity: Partial<T>): Promise<number> {
+    this.fillGeneratedId(entity);
     const { columns, values } = this.extractColumns(entity);
     const node: InsertNode = { type: 'insert', table: this.entityMeta.tableName, columns, values: [values] };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
     const result = await this.executeWithPlugins(node, sql, params);
+    // 雪花/UUID 主键直接返回已填充的值
+    const idCol = this.entityMeta.idColumn;
+    if (idCol && (idCol.idType === 'snowflake' || idCol.idType === 'uuid')) {
+      return (entity as any)[idCol.propertyName];
+    }
     return result?.insertId ?? result?.[0]?.id ?? result?.lastInsertRowid ?? 0;
   }
 
   async insertBatch(entities: Partial<T>[]): Promise<number> {
     if (!entities.length) return 0;
+    for (const e of entities) this.fillGeneratedId(e);
     const cols = this.getInsertableColumns();
     const columns = cols.map(c => c.columnName);
     const values = entities.map(e => cols.map(c => (e as any)[c.propertyName]));
@@ -175,6 +183,19 @@ export class BaseMapper<T extends object> {
   private requireIdColumn() {
     if (!this.entityMeta.idColumn) throw new Error(`No @Id defined on ${this.entityMeta.target.name}`);
     return this.entityMeta.idColumn;
+  }
+
+  /** 自动填充 snowflake / uuid 主键 */
+  private fillGeneratedId(entity: Partial<T>): void {
+    const idCol = this.entityMeta.idColumn;
+    if (!idCol) return;
+    // 如果用户已手动赋值，不覆盖
+    if ((entity as any)[idCol.propertyName] != null) return;
+    if (idCol.idType === 'snowflake') {
+      (entity as any)[idCol.propertyName] = nextSnowflakeId();
+    } else if (idCol.idType === 'uuid') {
+      (entity as any)[idCol.propertyName] = crypto.randomUUID();
+    }
   }
 
   private parseNamedParams(sql: string, params: Record<string, any>): { parsedSql: string; parsedParams: any[] } {
