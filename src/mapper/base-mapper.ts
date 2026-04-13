@@ -1,8 +1,9 @@
-import type { DataSource, EntityMeta, InsertNode, DeleteNode, Page } from '../types';
+import type { DataSource, EntityMeta, InsertNode, DeleteNode, Page, PluginContext, SqlNode } from '../types';
 import { getEntityMeta } from '../decorator';
 import { SqlBuilder } from '../builder/sql-builder';
 import { LambdaQueryWrapper } from '../wrapper/query-wrapper';
 import { LambdaUpdateWrapper } from '../wrapper/update-wrapper';
+import { runPlugins } from '../plugin/runner';
 
 export class BaseMapper<T extends object> {
   protected entityMeta: EntityMeta;
@@ -29,7 +30,7 @@ export class BaseMapper<T extends object> {
     const { columns, values } = this.extractColumns(entity);
     const node: InsertNode = { type: 'insert', table: this.entityMeta.tableName, columns, values: [values] };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.insertId ?? result?.[0]?.id ?? result?.lastInsertRowid ?? 0;
   }
 
@@ -40,7 +41,7 @@ export class BaseMapper<T extends object> {
     const values = entities.map(e => cols.map(c => (e as any)[c.propertyName]));
     const node: InsertNode = { type: 'insert', table: this.entityMeta.tableName, columns, values };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? entities.length;
   }
 
@@ -54,7 +55,7 @@ export class BaseMapper<T extends object> {
       where: { logic: 'AND', items: [{ column: idCol.columnName, op: '=', value: id }] },
     };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 
@@ -67,7 +68,7 @@ export class BaseMapper<T extends object> {
       where: { logic: 'AND', items: [{ column: idCol.columnName, op: 'IN', value: ids }] },
     };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 
@@ -79,7 +80,7 @@ export class BaseMapper<T extends object> {
       where: group.items.length ? group : null,
     };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 
@@ -100,7 +101,7 @@ export class BaseMapper<T extends object> {
       where: { logic: 'AND' as const, items: [{ column: idCol.columnName, op: '=' as const, value: idValue }] },
     };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 
@@ -117,7 +118,7 @@ export class BaseMapper<T extends object> {
       where: group.items.length ? group : null,
     };
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
-    const result = await this.ds.execute(sql, params);
+    const result = await this.executeWithPlugins(node, sql, params);
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 
@@ -184,5 +185,13 @@ export class BaseMapper<T extends object> {
       return this.ds.dialect.placeholder(++index);
     });
     return { parsedSql, parsedParams };
+  }
+
+  /** 通过插件链路执行 SQL */
+  private executeWithPlugins(node: SqlNode, sql: string, params: any[]): Promise<any> {
+    if (this.ds.plugins.length) {
+      return runPlugins(this.ds, node, sql, params, this.entityMeta);
+    }
+    return this.ds.execute(sql, params);
   }
 }

@@ -13,6 +13,7 @@ MyBatis-Plus 风格的 Node.js ORM 库，为 TypeScript 开发者提供类型安
 - 💉 **声明式事务** — `@Transactional` 装饰器 + AsyncLocalStorage 自动传播
 - 📝 **自定义 SQL** — `#{param}` 命名参数绑定，防 SQL 注入
 - 🎨 **装饰器映射** — `@Table` `@Column` `@Id` 定义实体，自动 camelCase → snake_case
+- 🔌 **插件机制** — beforeExecute / afterExecute 钩子，支持日志、审计、SQL 改写、慢查询监控
 
 ## 📦 安装
 
@@ -186,7 +187,94 @@ const users = await userMapper.rawQuery(
 );
 ```
 
-### 9. 事务
+### 9. 插件机制
+
+插件可以在 SQL 执行前后介入，实现日志、审计、慢查询监控、数据加解密等能力。
+
+```ts
+import type { Plugin, PluginContext } from 'node-mybatis-plus';
+
+// 示例：SQL 日志插件
+const sqlLogPlugin: Plugin = {
+  name: 'sql-log',
+  order: 0,  // 越小越先执行
+  beforeExecute(ctx: PluginContext) {
+    console.log(`[SQL] ${ctx.sql}`);
+    console.log(`[Params] ${JSON.stringify(ctx.params)}`);
+    (ctx as any)._startTime = Date.now();
+  },
+  afterExecute(ctx: PluginContext, result: any) {
+    const cost = Date.now() - (ctx as any)._startTime;
+    console.log(`[SQL] 耗时 ${cost}ms，影响行数: ${Array.isArray(result) ? result.length : '?'}`);
+    return result;  // 返回 undefined 则保持原结果不变
+  },
+};
+
+// 示例：慢查询告警插件
+const slowQueryPlugin: Plugin = {
+  name: 'slow-query',
+  order: 10,
+  beforeExecute(ctx: PluginContext) {
+    (ctx as any)._start = Date.now();
+  },
+  afterExecute(ctx: PluginContext) {
+    const cost = Date.now() - (ctx as any)._start;
+    if (cost > 1000) {
+      console.warn(`[慢查询] ${cost}ms → ${ctx.sql}`);
+    }
+  },
+};
+
+// 示例：SQL 改写插件（beforeExecute 中修改 ctx.sql / ctx.params）
+const tenantPlugin: Plugin = {
+  name: 'multi-tenant',
+  order: -10,
+  beforeExecute(ctx: PluginContext) {
+    // 自动追加租户条件
+    if (ctx.node.type === 'select' || ctx.node.type === 'update' || ctx.node.type === 'delete') {
+      ctx.sql = ctx.sql.includes('WHERE')
+        ? ctx.sql.replace('WHERE', 'WHERE tenant_id = ? AND')
+        : ctx.sql + ' WHERE tenant_id = ?';
+      ctx.params.push(getCurrentTenantId());
+    }
+  },
+};
+```
+
+注册插件：
+
+```ts
+const ds = createDataSource({
+  type: 'mysql',
+  database: 'test',
+  host: 'localhost',
+  username: 'root',
+  password: '******',
+  plugins: [sqlLogPlugin, slowQueryPlugin],  // 传入插件数组
+});
+```
+
+插件接口定义：
+
+```ts
+interface PluginContext {
+  node: SqlNode;       // SQL AST 节点（select/insert/update/delete）
+  sql: string;         // 编译后的 SQL 字符串（可在 beforeExecute 中修改）
+  params: any[];       // 参数数组（可在 beforeExecute 中修改）
+  entityMeta: EntityMeta;  // 实体元数据
+}
+
+interface Plugin {
+  name: string;        // 插件名称
+  order: number;       // 执行顺序，越小越先执行
+  beforeExecute?(ctx: PluginContext): Promise<void> | void;   // SQL 执行前
+  afterExecute?(ctx: PluginContext, result: any): Promise<any> | any;  // SQL 执行后
+}
+```
+
+执行流程：`beforeExecute(按 order 升序) → 执行 SQL → afterExecute(按 order 升序)`
+
+### 10. 事务
 
 ```ts
 import { withTransaction, setDefaultDataSource, Transactional } from 'node-mybatis-plus';
@@ -305,19 +393,20 @@ createDataSource({
     max: 10,
     idleTimeout: 30000,
   },
-  plugins: [],             // 插件（可选）
+  plugins: [],             // 插件数组（可选），详见「插件机制」章节
 });
 ```
 
 ## 🏗️ 架构
 
 ```
-用户代码 → Wrapper(条件收集) → SqlBuilder(AST构建) → Dialect(方言转换) → Executor(执行) → DataSource(连接池)
+用户代码 → Wrapper(条件收集) → SqlBuilder(AST构建) → Dialect(方言转换) → Plugin(插件链) → Executor(执行) → DataSource(连接池)
 ```
 
 - **Wrapper 层**：收集查询/更新条件，生成 Condition 数组
 - **SqlBuilder 层**：将条件转为 SQL AST，再编译为 SQL 字符串 + 参数数组
 - **Dialect 层**：处理数据库差异（占位符 `?` vs `$1`、标识符引用、分页语法等）
+- **Plugin 层**：按 order 排序执行 beforeExecute → SQL 执行 → afterExecute，支持 SQL 改写、日志、审计等
 - **DataSource 层**：管理连接池，执行 SQL，支持事务
 
 ## 🧪 测试

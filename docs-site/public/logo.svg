@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 数据库圆柱体 - 扁平风格 -->
+  <ellipse cx="100" cy="52" rx="52" ry="16" fill="#3eaf7c"/>
+  <rect x="48" y="52" width="104" height="56" fill="#3eaf7c"/>
+  <ellipse cx="100" cy="108" rx="52" ry="16" fill="#2d9469"/>
+  <ellipse cx="100" cy="52" rx="52" ry="16" fill="#4ec990"/>
+
+  <!-- 中间分隔线 -->
+  <ellipse cx="100" cy="72" rx="52" ry="12" fill="none" stroke="#fff" stroke-width="2" stroke-opacity="0.4"/>
+  <ellipse cx="100" cy="90" rx="52" ry="12" fill="none" stroke="#fff" stroke-width="2" stroke-opacity="0.3"/>
+
+  <!-- Lambda 符号 λ - 居中在数据库上 -->
+  <text x="100" y="98" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="52" font-weight="700" font-style="italic" fill="#fff" opacity="0.95">λ</text>
+
+  <!-- 底部文字 -->
+  <text x="100" y="148" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#2c3e50" letter-spacing="0.5">
+    NM+
+  </text>
+  <rect x="72" y="154" width="56" height="2.5" rx="1.25" fill="#3eaf7c"/>
+</svg>

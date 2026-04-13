@@ -1,6 +1,7 @@
 import type { EntityMeta, SelectNode, DataSource, Page } from '../types';
 import { AbstractWrapper } from './abstract-wrapper';
 import { SqlBuilder } from '../builder/sql-builder';
+import { runPlugins } from '../plugin/runner';
 
 export class LambdaQueryWrapper<T> extends AbstractWrapper<T, LambdaQueryWrapper<T>> {
   private _columns: string[] = [];
@@ -47,6 +48,9 @@ export class LambdaQueryWrapper<T> extends AbstractWrapper<T, LambdaQueryWrapper
     const node = this.buildSelectNode();
     const builder = new SqlBuilder(ds.dialect);
     const { sql, params } = builder.build(node);
+    if (ds.plugins.length) {
+      return runPlugins(ds, node, sql, params, this.entityMeta) as Promise<T[]>;
+    }
     return ds.execute(sql, params) as Promise<T[]>;
   }
 
@@ -70,7 +74,12 @@ export class LambdaQueryWrapper<T> extends AbstractWrapper<T, LambdaQueryWrapper
     const builder = new SqlBuilder(ds.dialect);
     const { sql, params } = builder.build(node);
     const countSql = sql.replace(/^SELECT \* FROM/, 'SELECT COUNT(*) AS total FROM');
-    const rows = await ds.execute(countSql, params);
+    let rows: any;
+    if (ds.plugins.length) {
+      rows = await runPlugins(ds, node, countSql, params, this.entityMeta);
+    } else {
+      rows = await ds.execute(countSql, params);
+    }
     return Number(rows[0]?.total ?? rows[0]?.count ?? 0);
   }
 

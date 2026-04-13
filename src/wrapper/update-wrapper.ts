@@ -1,6 +1,7 @@
 import type { EntityMeta, UpdateNode, DataSource } from '../types';
 import { AbstractWrapper } from './abstract-wrapper';
 import { SqlBuilder } from '../builder/sql-builder';
+import { runPlugins } from '../plugin/runner';
 
 export class LambdaUpdateWrapper<T> extends AbstractWrapper<T, LambdaUpdateWrapper<T>> {
   private _sets: { column: string; value: any }[] = [];
@@ -43,7 +44,12 @@ export class LambdaUpdateWrapper<T> extends AbstractWrapper<T, LambdaUpdateWrapp
     const node = this.buildUpdateNode();
     const builder = new SqlBuilder(this._datasource.dialect);
     const { sql, params } = builder.build(node);
-    const result = await this._datasource.execute(sql, params);
+    let result: any;
+    if (this._datasource.plugins.length) {
+      result = await runPlugins(this._datasource, node, sql, params, this.entityMeta);
+    } else {
+      result = await this._datasource.execute(sql, params);
+    }
     return result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
   }
 }

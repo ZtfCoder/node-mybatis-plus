@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest"
+    "test": "vitest",
+    "docs:dev": "cd docs-site && npx vitepress dev",
+    "docs:build": "cd docs-site && npx vitepress build"
   },
   "keywords": [
     "orm",

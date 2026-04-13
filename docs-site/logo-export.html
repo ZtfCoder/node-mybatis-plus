@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>node-mybatis-plus Logo 导出工具</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f8f9fa; color: #2c3e50; padding: 40px; }
+    h1 { margin-bottom: 8px; font-size: 24px; }
+    p.desc { color: #666; margin-bottom: 30px; }
+    .preview-row { display: flex; gap: 40px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 40px; padding: 32px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .preview-item { text-align: center; }
+    .preview-item img { display: block; margin: 0 auto 8px; }
+    .preview-item .label { font-size: 12px; color: #999; }
+    .dark-bg { background: #1a1a2e; }
+    .dark-bg .label { color: #aaa; }
+    .export-section { margin-top: 30px; }
+    .export-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .export-card { background: #fff; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .export-card h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
+    .export-card .size { font-size: 11px; color: #999; margin: 4px 0 12px; }
+    button { background: #3eaf7c; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    button:hover { background: #2d9469; }
+    .all-btn { font-size: 16px; padding: 12px 28px; margin-bottom: 24px; }
+    #status { margin-top: 16px; color: #3eaf7c; font-size: 14px; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <h1>node-mybatis-plus Logo 导出</h1>
+  <p class="desc">预览 Logo 在不同尺寸和背景下的效果，点击按钮导出 PNG。</p>
+
+  <h2 style="font-size:16px;margin-bottom:12px;">浅色背景预览</h2>
+  <div class="preview-row">
+    <div class="preview-item"><img src="/logo.svg" width="200" height="200"/><div class="label">200×200 完整</div></div>
+    <div class="preview-item"><img src="/logo.svg" width="128" height="128"/><div class="label">128×128</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="64" height="64"/><div class="label">64×64 favicon</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="32" height="32"/><div class="label">32×32</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="16" height="16"/><div class="label">16×16</div></div>
+  </div>
+
+  <h2 style="font-size:16px;margin-bottom:12px;">深色背景预览</h2>
+  <div class="preview-row dark-bg">
+    <div class="preview-item"><img src="/logo.svg" width="200" height="200"/><div class="label">200×200 完整</div></div>
+    <div class="preview-item"><img src="/logo.svg" width="128" height="128"/><div class="label">128×128</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="64" height="64"/><div class="label">64×64 favicon</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="32" height="32"/><div class="label">32×32</div></div>
+    <div class="preview-item"><img src="/favicon.svg" width="16" height="16"/><div class="label">16×16</div></div>
+  </div>
+
+  <div class="export-section">
+    <button class="all-btn" onclick="exportAll()">📦 一键导出全部 PNG</button>
+    <div id="status"></div>
+    <div class="export-grid">
+      <div class="export-card"><h3>Favicon 16×16</h3><div class="size">favicon-16.png</div><button onclick="exp('favicon',16,'favicon-16.png')">导出</button></div>
+      <div class="export-card"><h3>Favicon 32×32</h3><div class="size">favicon-32.png</div><button onclick="exp('favicon',32,'favicon-32.png')">导出</button></div>
+      <div class="export-card"><h3>Logo 128×128</h3><div class="size">logo-128.png</div><button onclick="exp('logo',128,'logo-128.png')">导出</button></div>
+      <div class="export-card"><h3>Apple Touch 180×180</h3><div class="size">apple-touch-icon.png</div><button onclick="exp('logo',180,'apple-touch-icon.png')">导出</button></div>
+      <div class="export-card"><h3>OG Image 512×512</h3><div class="size">logo-512.png</div><button onclick="exp('logo',512,'logo-512.png')">导出</button></div>
+    </div>
+  </div>
+
+  <canvas id="c" style="display:none"></canvas>
+  <script>
+    const src = { logo: '/logo.svg', favicon: '/favicon.svg' };
+    function exp(type, size, name) {
+      const c = document.getElementById('c'); c.width = size; c.height = size;
+      const ctx = c.getContext('2d'), img = new Image();
+      img.onload = () => { ctx.clearRect(0,0,size,size); ctx.drawImage(img,0,0,size,size);
+        const a = document.createElement('a'); a.download = name; a.href = c.toDataURL('image/png'); a.click();
+        document.getElementById('status').textContent = '✅ 已导出 ' + name;
+      }; img.src = src[type];
+    }
+    async function exportAll() {
+      const list = [['favicon',16,'favicon-16.png'],['favicon',32,'favicon-32.png'],['logo',128,'logo-128.png'],['logo',180,'apple-touch-icon.png'],['logo',512,'logo-512.png']];
+      for (const [t,s,n] of list) { exp(t,s,n); await new Promise(r=>setTimeout(r,400)); }
+      document.getElementById('status').textContent = '✅ 全部导出完成！放入 docs-site/public/ 即可。';
+    }
+  </script>
+</body>
+</html>

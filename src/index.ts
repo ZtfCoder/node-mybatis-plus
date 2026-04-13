@@ -34,3 +34,6 @@ export { BaseMapper } from './mapper/base-mapper';
 // Builder
 export { SqlBuilder } from './builder/sql-builder';
 export type { CompiledSql } from './builder/sql-builder';
+
+// Plugin
+export { runPlugins } from './plugin/runner';
