@@ -31,6 +31,7 @@ export function Id(options?: IdOptions): PropertyDecorator {
 export interface ColumnOptions {
   name?: string;
   exist?: boolean;
+  fill?: FillStrategy;
 }
 
 export function Column(nameOrOptions?: string | ColumnOptions): PropertyDecorator {
@@ -42,6 +43,7 @@ export function Column(nameOrOptions?: string | ColumnOptions): PropertyDecorato
     } else if (nameOrOptions) {
       if (nameOrOptions.name) col.columnName = nameOrOptions.name;
       if (nameOrOptions.exist === false) col.exist = false;
+      if (nameOrOptions.fill) col.fill = nameOrOptions.fill;
     }
   };
 }
@@ -79,6 +81,10 @@ export function camelToSnake(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 
+// ============ @TableField（@Column 的别名，兼容 MyBatis-Plus 风格）============
+export const TableField = Column;
+export type TableFieldOptions = ColumnOptions;
+
 // ============ @LogicDelete ============
 
 export interface LogicDeleteOptions {
@@ -99,26 +105,5 @@ export function LogicDelete(options?: LogicDeleteOptions): PropertyDecorator {
     col.logicDeleteValue = options?.deleteValue ?? 1;
     col.logicNotDeleteValue = options?.notDeleteValue ?? 0;
     meta.logicDeleteColumn = col;
-  };
-}
-
-// ============ @TableField ============
-
-export interface TableFieldOptions {
-  /** 自动填充策略 */
-  fill?: FillStrategy;
-  /** 数据库列名，不传则自动 camelCase → snake_case */
-  name?: string;
-  /** 是否为数据库字段，默认 true */
-  exist?: boolean;
-}
-
-export function TableField(options: TableFieldOptions): PropertyDecorator {
-  return (target, propertyKey) => {
-    const meta = getOrCreateMeta(target.constructor);
-    const col = ensureColumn(meta, propertyKey as string);
-    if (options.name) col.columnName = options.name;
-    if (options.exist === false) col.exist = false;
-    if (options.fill) col.fill = options.fill;
   };
 }

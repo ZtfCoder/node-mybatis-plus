@@ -11,7 +11,7 @@ export type {
 
 // Decorators
 export { Table, Column, Id, LogicDelete, TableField } from './decorator';
-export type { IdOptions, ColumnOptions, LogicDeleteOptions, TableFieldOptions } from './decorator';
+export type { IdOptions, ColumnOptions, TableFieldOptions, LogicDeleteOptions } from './decorator';
 
 // DataSource
 export { createDataSource } from './core/datasource';
