@@ -61,6 +61,7 @@ export interface InsertNode {
   table: string;
   columns: string[];
   values: any[][];
+  returningId?: string;
 }
 
 export interface UpdateNode {
@@ -94,6 +95,7 @@ export interface PluginContext {
   sql: string;
   params: any[];
   entityMeta: EntityMeta;
+  dialect: Dialect;
 }
 
 export interface Plugin {

@@ -415,6 +415,7 @@ interface PluginContext {
   sql: string;             // 最终 SQL
   params: any[];           // 参数
   entityMeta: EntityMeta;  // 实体元数据
+  dialect: Dialect;        // 数据库方言（可用于生成兼容的占位符和引号）
   operation: 'select' | 'insert' | 'update' | 'delete';
 }
 ```

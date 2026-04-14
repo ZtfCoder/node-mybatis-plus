@@ -45,6 +45,9 @@ interface PluginContext {
 
   /** 实体元数据 */
   entityMeta: EntityMeta;
+
+  /** 数据库方言（可用于生成兼容的占位符和引号） */
+  dialect: Dialect;
 }
 ```
 

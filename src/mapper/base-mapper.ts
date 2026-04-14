@@ -30,15 +30,18 @@ export class BaseMapper<T extends object> {
   async insert(entity: Partial<T>): Promise<number> {
     this.fillGeneratedId(entity);
     const { columns, values } = this.extractColumns(entity);
+    const idCol = this.entityMeta.idColumn;
     const node: InsertNode = { type: 'insert', table: this.entityMeta.tableName, columns, values: [values] };
+    if (idCol && idCol.idType === 'auto') {
+      node.returningId = idCol.columnName;
+    }
     const { sql, params } = new SqlBuilder(this.ds.dialect).build(node);
     const result = await this.executeWithPlugins(node, sql, params);
     // 雪花/UUID 主键直接返回已填充的值
-    const idCol = this.entityMeta.idColumn;
     if (idCol && (idCol.idType === 'snowflake' || idCol.idType === 'uuid')) {
       return (entity as any)[idCol.propertyName];
     }
-    return result?.insertId ?? result?.[0]?.id ?? result?.lastInsertRowid ?? 0;
+    return result?.insertId ?? result?.rows?.[0]?.[idCol?.columnName] ?? result?.[0]?.[idCol?.columnName] ?? result?.lastInsertRowid ?? 0;
   }
 
   async insertBatch(entities: Partial<T>[]): Promise<number> {

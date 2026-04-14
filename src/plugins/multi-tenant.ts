@@ -1,34 +1,17 @@
 import type { Plugin, PluginContext } from '../types';
 
 export interface MultiTenantOptions {
-  /**
-   * 获取当前租户 ID 的函数（支持同步/异步）
-   * @example () => AsyncLocalStorage.getStore()?.tenantId
-   */
   getTenantId: () => any | Promise<any>;
-
-  /** 租户字段的数据库列名，默认 'tenant_id' */
   tenantColumn?: string;
-
-  /**
-   * 忽略多租户隔离的表名列表
-   * @example ['sys_config', 'sys_dict']
-   */
   ignoreTables?: string[];
-
-  /**
-   * 是否在 INSERT 时自动填充租户 ID，默认 true
-   */
   fillOnInsert?: boolean;
 }
 
 /**
  * 多租户插件
  *
- * SELECT → 自动追加 WHERE tenant_id = ?
+ * SELECT/UPDATE/DELETE → 自动追加 WHERE tenant_id = ?
  * INSERT → 自动填充 tenant_id 列
- * UPDATE → 自动追加 WHERE tenant_id = ?
- * DELETE → 自动追加 WHERE tenant_id = ?（逻辑删除改写后也会追加）
  */
 export function createMultiTenantPlugin(options: MultiTenantOptions): Plugin {
   const tenantCol = options.tenantColumn ?? 'tenant_id';
@@ -40,63 +23,102 @@ export function createMultiTenantPlugin(options: MultiTenantOptions): Plugin {
     order: -80,
 
     async beforeExecute(ctx: PluginContext): Promise<void> {
-      const { node } = ctx;
+      const { node, dialect } = ctx;
 
-      // 忽略表检查
       if (ignoreTables.has(node.table)) return;
 
       const tenantId = await options.getTenantId();
-      if (tenantId == null) return; // 没有租户 ID，跳过（如超级管理员）
+      if (tenantId == null) return;
 
-      const quotedCol = `\`${tenantCol}\``;
+      const quotedCol = dialect.quote(tenantCol);
+      const usesPositional = dialect.placeholder(1) !== '?';
 
       if (node.type === 'select' || node.type === 'update' || node.type === 'delete') {
-        // 追加租户条件
-        const condition = `${quotedCol} = ?`;
-        if (ctx.sql.toUpperCase().includes(' WHERE ')) {
-          ctx.sql = ctx.sql.replace(/ WHERE /i, ` WHERE ${condition} AND `);
+        if (usesPositional) {
+          // PG: $N 占位符，参数放最前面，重编号已有占位符
+          ctx.params = [tenantId, ...ctx.params];
+          ctx.sql = reindexPlaceholders(ctx.sql, 1);
+          const condition = `${quotedCol} = ${dialect.placeholder(1)}`;
+          ctx.sql = injectWhereCondition(ctx.sql, condition);
         } else {
-          // 在 ORDER BY / GROUP BY / LIMIT / 末尾之前插入
-          const insertBefore = / ORDER BY | GROUP BY | LIMIT /i.exec(ctx.sql);
-          if (insertBefore) {
-            ctx.sql =
-              ctx.sql.slice(0, insertBefore.index) +
-              ` WHERE ${condition}` +
-              ctx.sql.slice(insertBefore.index);
+          // MySQL/SQLite: ? 占位符，参数追加到末尾，条件也追加到 WHERE 末尾
+          const condition = `${quotedCol} = ?`;
+          if (/\bWHERE\b/i.test(ctx.sql)) {
+            ctx.sql = ctx.sql.replace(/\bWHERE\b/i, `WHERE ${condition} AND`);
           } else {
-            ctx.sql += ` WHERE ${condition}`;
+            const match = /\b(ORDER BY|GROUP BY|LIMIT)\b/i.exec(ctx.sql);
+            if (match) {
+              ctx.sql = ctx.sql.slice(0, match.index).trimEnd() + ` WHERE ${condition} ` + ctx.sql.slice(match.index);
+            } else {
+              ctx.sql += ` WHERE ${condition}`;
+            }
+          }
+          // 对于 ? 占位符，tenant 条件在 WHERE 最前面，参数也要在 WHERE 参数最前面
+          // 找到 SET 部分的参数数量（UPDATE 场景）
+          if (node.type === 'update') {
+            const setPartMatch = ctx.sql.match(/\bSET\b([\s\S]*?)\bWHERE\b/i);
+            const setParamCount = setPartMatch ? (setPartMatch[1].match(/\?/g) || []).length : 0;
+            ctx.params.splice(setParamCount, 0, tenantId);
+          } else {
+            // SELECT/DELETE: 没有 SET 参数，tenant 参数在最前面
+            ctx.params = [tenantId, ...ctx.params];
           }
         }
-        ctx.params = [tenantId, ...ctx.params];
 
       } else if (node.type === 'insert' && fillOnInsert) {
-        // INSERT 时自动填充租户 ID
-        // 检查是否已有 tenant_id 列
-        if (ctx.sql.includes(tenantCol)) return;
-
-        // INSERT INTO `table` (`col1`, `col2`) VALUES (?, ?) 或批量
-        // 处理批量插入：VALUES (?, ?), (?, ?)
-        ctx.sql = ctx.sql.replace(
-          /\(([^)]+)\)\s+VALUES\s+([\s\S]+)$/i,
-          (_, cols, vals) => {
-            // 每组 VALUES 都追加一个 ?
-            const newVals = vals.replace(/\(([^)]+)\)/g, (_: string, v: string) => `(${v}, ?)`);
-            return `(${cols}, ${quotedCol}) VALUES ${newVals}`;
+        if (ctx.sql.includes(tenantCol)) {
+          // 列已在 SQL 中，替换每行中对应位置的 undefined/null 参数
+          const colIndex = (node as any).columns?.indexOf(tenantCol);
+          if (colIndex != null && colIndex >= 0) {
+            const rowCount = (node as any).values?.length ?? 1;
+            const paramsPerRow = rowCount > 0 ? ctx.params.length / rowCount : ctx.params.length;
+            for (let i = 0; i < rowCount; i++) {
+              const idx = i * paramsPerRow + colIndex;
+              if (ctx.params[idx] == null) ctx.params[idx] = tenantId;
+            }
           }
-        );
-
-        // 批量插入时每行都需要插入 tenantId
-        const rowCount = (ctx.sql.match(/\(/g) || []).length - 1; // 减去列定义的括号
-        const insertParamCount = ctx.params.length;
-        const paramsPerRow = insertParamCount / Math.max(rowCount, 1);
-
-        // 在每行参数末尾插入 tenantId
-        const newParams: any[] = [];
-        for (let i = 0; i < ctx.params.length; i += paramsPerRow) {
-          newParams.push(...ctx.params.slice(i, i + paramsPerRow), tenantId);
+          return;
         }
+
+        const colMatch = ctx.sql.match(/^(INSERT INTO\s+\S+\s*\()([^)]+)(\)\s*VALUES\s*)([\s\S]+)$/i);
+        if (!colMatch) return;
+
+        const [, prefix, cols, valuesKeyword, valuesPart] = colMatch;
+
+        const rowCount = (valuesPart.match(/\(/g) || []).length;
+        const paramsPerRow = rowCount > 0 ? ctx.params.length / rowCount : ctx.params.length;
+
+        const newParams: any[] = [];
+        const newRows: string[] = [];
+        const newParamsPerRow = paramsPerRow + 1;
+
+        for (let i = 0; i < rowCount; i++) {
+          newParams.push(...ctx.params.slice(i * paramsPerRow, (i + 1) * paramsPerRow), tenantId);
+          const placeholders: string[] = [];
+          for (let j = 0; j < newParamsPerRow; j++) {
+            placeholders.push(dialect.placeholder(i * newParamsPerRow + j + 1));
+          }
+          newRows.push(`(${placeholders.join(', ')})`);
+        }
+
+        ctx.sql = `${prefix}${cols}, ${quotedCol}${valuesKeyword}${newRows.join(', ')}`;
         ctx.params = newParams;
       }
     },
   };
+}
+
+function injectWhereCondition(sql: string, condition: string): string {
+  if (/\bWHERE\b/i.test(sql)) {
+    return sql.replace(/\bWHERE\b/i, `WHERE ${condition} AND`);
+  }
+  const match = /\b(ORDER BY|GROUP BY|LIMIT)\b/i.exec(sql);
+  if (match) {
+    return sql.slice(0, match.index).trimEnd() + ` WHERE ${condition} ` + sql.slice(match.index);
+  }
+  return sql + ` WHERE ${condition}`;
+}
+
+function reindexPlaceholders(sql: string, offset: number): string {
+  return sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
 }

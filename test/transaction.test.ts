@@ -6,7 +6,7 @@ import { createDataSource } from '../src/core/datasource';
 import { withTransaction, setDefaultDataSource, Transactional } from '../src/core/transaction';
 import type { DataSource } from '../src/types';
 
-@Table('account')
+@Table('nbp_test_account')
 class Account {
   @Id({ type: 'auto' }) id!: number;
   @Column() name!: string;
@@ -22,7 +22,7 @@ beforeAll(async () => {
   ds = createDataSource({ type: 'sqlite', database: ':memory:' });
   setDefaultDataSource(ds);
   await ds.execute(`
-    CREATE TABLE account (
+    CREATE TABLE nbp_test_account (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       balance INTEGER NOT NULL DEFAULT 0
@@ -36,7 +36,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await ds.execute('DELETE FROM account', []);
+  await ds.execute('DELETE FROM nbp_test_account', []);
   await mapper.insertBatch([
     { name: 'Alice', balance: 100 },
     { name: 'Bob', balance: 200 },

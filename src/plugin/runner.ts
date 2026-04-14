@@ -12,7 +12,7 @@ export async function runPlugins(
   entityMeta: EntityMeta,
 ): Promise<any> {
   const plugins = [...ds.plugins].sort((a, b) => a.order - b.order);
-  const ctx: PluginContext = { node, sql, params, entityMeta };
+  const ctx: PluginContext = { node, sql, params, entityMeta, dialect: ds.dialect };
 
   // beforeExecute
   for (const p of plugins) {

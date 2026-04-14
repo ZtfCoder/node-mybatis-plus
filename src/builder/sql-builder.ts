@@ -53,7 +53,12 @@ export class SqlBuilder {
       const placeholders = row.map(v => this.addParam(v));
       return `(${placeholders.join(', ')})`;
     }).join(', ');
-    return `INSERT INTO ${this.q(node.table)} (${cols}) VALUES ${rows}`;
+    let sql = `INSERT INTO ${this.q(node.table)} (${cols}) VALUES ${rows}`;
+    if (node.returningId) {
+      const ret = this.dialect.insertReturningId(node.table, node.columns, node.returningId);
+      if (ret) sql += ` ${ret}`;
+    }
+    return sql;
   }
 
   private buildUpdate(node: UpdateNode): string {

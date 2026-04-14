@@ -251,6 +251,7 @@ interface PluginContext {
   sql: string;         // 编译后的 SQL 字符串（可在 beforeExecute 中修改）
   params: any[];       // 参数数组（可在 beforeExecute 中修改）
   entityMeta: EntityMeta;  // 实体元数据
+  dialect: Dialect;        // 数据库方言（可用于生成兼容的占位符和引号）
 }
 
 interface Plugin {
@@ -409,7 +410,7 @@ npm test
 npx vitest run test/wrapper.test.ts
 ```
 
-测试覆盖：207 个用例，包括单元测试（方言、装饰器、SQL 构建、条件构造器）和集成测试（SQLite + MySQL 全 CRUD、事务、自定义 SQL）。
+测试覆盖：366 个用例，包括单元测试（方言、装饰器、SQL 构建、条件构造器、插件）和集成测试（SQLite + MySQL + PostgreSQL 全 CRUD、事务、自定义 SQL、插件集成）。
 
 ## 📋 Roadmap
 

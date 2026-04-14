@@ -58,6 +58,7 @@ interface PluginContext {
   sql: string
   params: any[]
   entityMeta: EntityMeta
+  dialect: Dialect;         // 数据库方言（可用于生成兼容的占位符和引号）
 }
 ```
 

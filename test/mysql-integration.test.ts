@@ -26,11 +26,11 @@ let mapper: TestUserMapper;
 beforeAll(() => {
   ds = createDataSource({
     type: 'mysql',
-    host: 'YOUR_MYSQL_HOST',
-    port: 3306,
-    username: 'YOUR_MYSQL_USER',
-    password: 'YOUR_MYSQL_PASSWORD',
-    database: 'YOUR_DATABASE',
+    host: process.env.MYSQL_HOST ?? 'localhost',
+    port: Number(process.env.MYSQL_PORT ?? 3306),
+    username: process.env.MYSQL_USER ?? 'root',
+    password: process.env.MYSQL_PASSWORD ?? '',
+    database: process.env.MYSQL_DATABASE ?? 'test',
     pool: { min: 2, max: 5 },
   });
   setDefaultDataSource(ds);
@@ -72,6 +72,11 @@ describe('MySQL Integration', () => {
     it('insertBatch empty returns 0', async () => {
       expect(await mapper.insertBatch([])).toBe(0);
     });
+
+    it('inserts entity without optional fields', async () => {
+      const id = await mapper.insert({ userName: '李四', age: 25 } as any);
+      expect(id).toBeGreaterThan(0);
+    });
   });
 
   // ---- SELECT ----
@@ -101,6 +106,10 @@ describe('MySQL Integration', () => {
       const all = await mapper.selectList();
       const users = await mapper.selectBatchIds([all[0].id, all[2].id]);
       expect(users).toHaveLength(2);
+    });
+
+    it('selectBatchIds with empty array returns empty', async () => {
+      expect(await mapper.selectBatchIds([])).toEqual([]);
     });
 
     it('selectList returns all', async () => {
@@ -226,6 +235,12 @@ describe('MySQL Integration', () => {
       expect(list).toHaveLength(2);
     });
 
+    it('page 2', async () => {
+      const list = await mapper.lambdaQuery().orderByAsc('age').page(2, 2).list();
+      expect(list).toHaveLength(2);
+      expect(list[0].age).toBe(25);
+    });
+
     it('selectPage', async () => {
       const page = await mapper.selectPage(1, 2);
       expect(page.records).toHaveLength(2);
@@ -278,6 +293,15 @@ describe('MySQL Integration', () => {
       expect(affected).toBe(1);
       const updated = await mapper.selectById(all[0].id);
       expect(updated!.age).toBe(21);
+    });
+
+    it('updateById throws without id', async () => {
+      await expect(mapper.updateById({ age: 21 } as any)).rejects.toThrow('id value');
+    });
+
+    it('updateById throws with no fields', async () => {
+      const all = await mapper.selectList();
+      await expect(mapper.updateById({ id: all[0].id } as any)).rejects.toThrow('No fields');
     });
 
     it('update with wrapper', async () => {
@@ -333,6 +357,10 @@ describe('MySQL Integration', () => {
       const all = await mapper.selectList();
       expect(await mapper.deleteBatchIds([all[0].id, all[1].id])).toBe(2);
       expect(await mapper.selectList()).toHaveLength(1);
+    });
+
+    it('deleteBatchIds with empty array', async () => {
+      expect(await mapper.deleteBatchIds([])).toBe(0);
     });
 
     it('delete with wrapper', async () => {

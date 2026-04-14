@@ -39,9 +39,9 @@ describe('createDataSource', () => {
 describe('SQLite DataSource connection', () => {
   it('executes queries on in-memory database', async () => {
     const ds = createDataSource({ type: 'sqlite', database: ':memory:' });
-    await ds.execute('CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)', []);
-    await ds.execute('INSERT INTO test (val) VALUES (?)', ['hello']);
-    const rows = await ds.execute('SELECT * FROM test', []);
+    await ds.execute('CREATE TABLE nbp_ds_test (id INTEGER PRIMARY KEY, val TEXT)', []);
+    await ds.execute('INSERT INTO nbp_ds_test (val) VALUES (?)', ['hello']);
+    const rows = await ds.execute('SELECT * FROM nbp_ds_test', []);
     expect(rows).toHaveLength(1);
     expect(rows[0].val).toBe('hello');
     await ds.close();
@@ -49,9 +49,9 @@ describe('SQLite DataSource connection', () => {
 
   it('getConnection returns working connection', async () => {
     const ds = createDataSource({ type: 'sqlite', database: ':memory:' });
-    await ds.execute('CREATE TABLE t2 (id INTEGER PRIMARY KEY)', []);
+    await ds.execute('CREATE TABLE nbp_ds_conn (id INTEGER PRIMARY KEY)', []);
     const conn = await ds.getConnection();
-    const result = await conn.query('SELECT COUNT(*) AS cnt FROM t2', []);
+    const result = await conn.query('SELECT COUNT(*) AS cnt FROM nbp_ds_conn', []);
     expect(result).toHaveLength(1);
     conn.release(); // no-op for sqlite
     await ds.close();

@@ -2,6 +2,11 @@ import type { DataSource, DataSourceConfig, Connection, TransactionContext, Dial
 import { createDialect } from '../dialect';
 import { getCurrentTxConnection } from './transaction';
 
+function isSelectSql(sql: string): boolean {
+  const cmd = sql.trimStart().toUpperCase();
+  return cmd.startsWith('SELECT') || cmd.startsWith('WITH');
+}
+
 /** 如果当前在事务上下文中，优先使用事务连接执行 */
 async function txAwareExecute(ds: DataSource, sql: string, params: any[]): Promise<any> {
   const txCtx = getCurrentTxConnection();
@@ -102,7 +107,7 @@ class PgConnection implements Connection {
   constructor(private client: any) {}
   async query(sql: string, params: any[]): Promise<any> {
     const result = await this.client.query(sql, params);
-    return result.rows;
+    return isSelectSql(sql) ? result.rows : result;
   }
   release(): void {
     this.client.release();
@@ -147,7 +152,7 @@ class PostgresDataSource implements DataSource {
     if (txResult !== null) return txResult;
     const pool = await this.getPool();
     const result = await pool.query(sql, params);
-    return result.rows;
+    return isSelectSql(sql) ? result.rows : result;
   }
 
   async transaction<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T> {

@@ -3,24 +3,14 @@ import type { Plugin, PluginContext, FillStrategy } from '../types';
 export type FillHandler = (fieldName: string, strategy: FillStrategy) => any;
 
 export interface AutoFillOptions {
-  /**
-   * 填充处理器，根据字段名和填充策略返回要填充的值
-   * @example
-   * handler: (field, strategy) => {
-   *   if (field === 'createTime' || field === 'updateTime') return new Date();
-   *   if (field === 'createBy') return getCurrentUserId();
-   * }
-   */
   handler: FillHandler;
 }
 
 /**
  * 自动填充插件
  *
- * 在 INSERT 时填充 fill: 'insert' | 'insertAndUpdate' 的字段
- * 在 UPDATE 时填充 fill: 'update' | 'insertAndUpdate' 的字段
- *
- * 需要实体上有 @TableField({ fill: '...' }) 装饰的字段才会生效
+ * INSERT 时填充 fill: 'insert' | 'insertAndUpdate' 的字段
+ * UPDATE 时填充 fill: 'update' | 'insertAndUpdate' 的字段
  */
 export function createAutoFillPlugin(options: AutoFillOptions): Plugin {
   return {
@@ -28,7 +18,7 @@ export function createAutoFillPlugin(options: AutoFillOptions): Plugin {
     order: -90,
 
     beforeExecute(ctx: PluginContext): void {
-      const { entityMeta, node } = ctx;
+      const { entityMeta, node, dialect } = ctx;
 
       if (node.type === 'insert') {
         const fillCols = entityMeta.columns.filter(
@@ -40,19 +30,51 @@ export function createAutoFillPlugin(options: AutoFillOptions): Plugin {
           const value = options.handler(col.propertyName, col.fill!);
           if (value === undefined) continue;
 
-          // 检查该列是否已在 INSERT 语句中
-          const quotedCol = `\`${col.columnName}\``;
-          const doubleQuotedCol = `"${col.columnName}"`;
+          // 检查列是否已存在（兼容反引号和双引号）
+          const alreadyExists =
+            ctx.sql.includes(`\`${col.columnName}\``) ||
+            ctx.sql.includes(`"${col.columnName}"`) ||
+            ctx.sql.includes(` ${col.columnName} `) ||
+            ctx.sql.includes(`(${col.columnName})`);
 
-          if (!ctx.sql.includes(quotedCol) && !ctx.sql.includes(doubleQuotedCol) && !ctx.sql.includes(col.columnName)) {
-            // 列不存在，追加到 INSERT 的列列表和 VALUES 中
-            // INSERT INTO `table` (`col1`, `col2`) VALUES (?, ?)
-            ctx.sql = ctx.sql.replace(
-              /\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/i,
-              (_, cols, vals) => `(${cols}, \`${col.columnName}\`) VALUES (${vals}, ?)`
-            );
-            ctx.params.push(value);
+          if (alreadyExists) {
+            // 列已在 SQL 中，替换每行中对应位置的 undefined/null 参数
+            const colIndex = (node as any).columns?.indexOf(col.columnName);
+            if (colIndex == null || colIndex < 0) continue;
+            const rowCount = (node as any).values?.length ?? 1;
+            const paramsPerRow = rowCount > 0 ? ctx.params.length / rowCount : ctx.params.length;
+            for (let i = 0; i < rowCount; i++) {
+              const idx = i * paramsPerRow + colIndex;
+              if (ctx.params[idx] == null) ctx.params[idx] = value;
+            }
+            continue;
           }
+
+          const colMatch = ctx.sql.match(/^(INSERT INTO\s+\S+\s*\()([^)]+)(\)\s*VALUES\s*)([\s\S]+)$/i);
+          if (!colMatch) continue;
+
+          const [, prefix, cols, valuesKeyword, valuesPart] = colMatch;
+          const quotedCol = dialect.quote(col.columnName);
+
+          const rowCount = (valuesPart.match(/\(/g) || []).length;
+          const paramsPerRow = rowCount > 0 ? ctx.params.length / rowCount : ctx.params.length;
+
+          // 重建每行占位符并追加新列的值
+          const newParams: any[] = [];
+          const newRows: string[] = [];
+          const newParamsPerRow = paramsPerRow + 1;
+
+          for (let i = 0; i < rowCount; i++) {
+            newParams.push(...ctx.params.slice(i * paramsPerRow, (i + 1) * paramsPerRow), value);
+            const placeholders: string[] = [];
+            for (let j = 0; j < newParamsPerRow; j++) {
+              placeholders.push(dialect.placeholder(i * newParamsPerRow + j + 1));
+            }
+            newRows.push(`(${placeholders.join(', ')})`);
+          }
+
+          ctx.sql = `${prefix}${cols}, ${quotedCol}${valuesKeyword}${newRows.join(', ')}`;
+          ctx.params = newParams;
         }
 
       } else if (node.type === 'update') {
@@ -65,22 +87,34 @@ export function createAutoFillPlugin(options: AutoFillOptions): Plugin {
           const value = options.handler(col.propertyName, col.fill!);
           if (value === undefined) continue;
 
-          // 追加到 SET 子句
-          // UPDATE `table` SET `col1` = ? WHERE ...
-          ctx.sql = ctx.sql.replace(
-            /SET\s+(.+?)\s+WHERE/i,
-            (_, sets) => `SET ${sets}, \`${col.columnName}\` = ? WHERE`
-          );
-          // 找到 WHERE 之前的参数位置插入
-          const whereIndex = ctx.sql.toLowerCase().indexOf(' where ');
-          if (whereIndex === -1) {
-            // 没有 WHERE，直接追加
-            ctx.sql = ctx.sql.replace(/SET\s+(.+)$/i, (_, sets) => `SET ${sets}, \`${col.columnName}\` = ?`);
-            ctx.params.push(value);
-          } else {
-            // 计算 SET 部分的参数数量，在 WHERE 参数之前插入
-            const setParamCount = (ctx.sql.slice(0, whereIndex).match(/\?/g) || []).length;
+          const quotedCol = dialect.quote(col.columnName);
+          const hasWhere = /\bWHERE\b/i.test(ctx.sql);
+
+          if (hasWhere) {
+            // 在 WHERE 前插入新的 SET 列，需要重新编号后续占位符
+            const whereIdx = ctx.sql.search(/\bWHERE\b/i);
+            const beforeWhere = ctx.sql.slice(0, whereIdx);
+            const afterWhere = ctx.sql.slice(whereIdx);
+
+            // 计算当前 SET 部分有多少个参数
+            const setParamCount = (beforeWhere.match(/\?/g) || []).length +
+              ([...beforeWhere.matchAll(/\$(\d+)/g)].length);
+
             ctx.params.splice(setParamCount, 0, value);
+
+            // 重建 SQL：在 WHERE 前追加新列
+            const newPlaceholder = dialect.placeholder(setParamCount + 1);
+            const newBeforeWhere = beforeWhere.trimEnd() + `, ${quotedCol} = ${newPlaceholder} `;
+            // 偏移 WHERE 后的 $N 占位符
+            const newAfterWhere = afterWhere.replace(/\$(\d+)/g, (_, n) => {
+              const num = Number(n);
+              return num > setParamCount ? `$${num + 1}` : `$${n}`;
+            });
+            ctx.sql = newBeforeWhere + newAfterWhere;
+          } else {
+            const paramIdx = ctx.params.length + 1;
+            ctx.sql += `, ${quotedCol} = ${dialect.placeholder(paramIdx)}`;
+            ctx.params.push(value);
           }
         }
       }

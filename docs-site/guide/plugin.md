@@ -23,6 +23,7 @@ interface PluginContext {
   sql: string;           // 编译后的 SQL 字符串（可在 beforeExecute 中修改）
   params: any[];         // 参数数组（可在 beforeExecute 中修改）
   entityMeta: EntityMeta; // 当前操作的实体元数据
+  dialect: Dialect;       // 数据库方言（可用于生成兼容的占位符和引号）
 }
 ```
 
